@@ -33,7 +33,10 @@ public class Board : IEnumerable
         {
             for (int j = 0; j < y; j++)
             {
-                grid[i, j] = new Cell();
+                grid[i, j] = new Cell
+                {
+                    Coordinates = (i, j)
+                };
             }
         }
 
@@ -85,26 +88,57 @@ public class Board : IEnumerable
                 {
                     try //at the edges, this creates IOORE. Fix it simply.
                     {
-                        grid[adjacent.Item1, adjacent.Item2].Adjacent++;
+                        grid[adjacent.Item1, adjacent.Item2].AdjacentMines++;
                     }
                     catch (Exception e)
                     {
                         if (e is not IndexOutOfRangeException)
                             throw;
+                        
                     }
                     
                 }
             }
+        
+        
+        //Now we need to give every cell its list of adjacent cells in (int, int) tuples
 
+        for (int i = 0; i < y; i++)
+        {
+            for (int j = 0; j < x; j++)
+            {
+                (int x, int y)[] adjacents = new[]
+                {
+                    (i+1,j),
+                    (i,j+1),
+                    (i-1,j),
+                    (i,j-1),
+                    (i+1,j+1),
+                    (i-1,j-1),
+                    (i-1,j+1),
+                    (i+1,j-1)
+                };
+                
+                //This creates conflicts at the borders
+                //use LINQ to filter out every entry where 0 <= x <= width and 0 <= y <= height
+                grid[i,j].AdjacentCells = adjacents.Where(tuple => tuple.x >= 0 && tuple.x < x && tuple.y >= 0 && tuple.y < y).ToList();
+                
+            }
+        }
+        
+
+        // Finally, before returning the grid, initialize the cells
+        foreach(Cell cell in grid) cell.Init();
+        
         return grid;
         
 
         (int, int) GetRandomCell(int maxX, int maxY)
         {
             var rand = new Random();
-            int x = rand.Next(maxX);
-            int y = rand.Next(maxY);
-            return (x, y);
+            int randX = rand.Next(maxX);
+            int randY = rand.Next(maxY);
+            return (randX, randY);
         }
     }
 

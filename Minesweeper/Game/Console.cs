@@ -45,19 +45,25 @@ public static class Console
                 //if the cell is not dug, print a white 0 and continue
                 if (!board.Grid[x, y].IsDug)
                 {
+                    // BUT if it is flagged, print a pink F
+                    if (board.Grid[x, y].IsFlagged)
+                    {
+                        ColorWrite(" F ", ConsoleColor.Magenta);
+                        continue;
+                    }
                     System.Console.Write(" 0 ");
                     continue;
                 }
                 
                 //if the cell is dug and has zero adjacent, print three spaces and continue
-                if (board.Grid[x, y].Adjacent == 0)
+                if (board.Grid[x, y].AdjacentMines == 0)
                 {
                     System.Console.Write("   ");
                     continue;
                 }
                 
                 //switch/case to choose color
-                ColorWrite($" {board.Grid[x,y].Adjacent} ", board.Grid[x, y].Adjacent switch
+                ColorWrite($" {board.Grid[x,y].AdjacentMines} ", board.Grid[x, y].AdjacentMines switch
                 {
                     1 or 2 => ConsoleColor.Blue,
                     3 or 4 => ConsoleColor.Yellow,
@@ -72,7 +78,7 @@ public static class Console
         }
     }
 
-    private static void ColorWrite(string input, ConsoleColor color)
+    public static void ColorWrite(string input, ConsoleColor color)
     {
         ConsoleColor orig = System.Console.ForegroundColor;
         System.Console.ForegroundColor = color;
