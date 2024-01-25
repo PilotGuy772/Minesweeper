@@ -55,7 +55,7 @@ public class Solver
             // if no cell was dug, dig the cell described by those variables.
             bool dugCell = false;
             float lowestScore = 101.0f;
-            (int x, int y) lowestCoordinates = (0, 0);
+            (int x, int y) lowestCoordinates = (-1, -1);
             foreach (Cell cell in board)
             {
                 //check if the cell has a calculated probability
@@ -78,9 +78,9 @@ public class Solver
             }
             
             //now, if we haven't dug a cell, dig the lowest probability one
-            if (!dugCell)
+            if (!dugCell && Math.Abs(lowestScore - 101.0f) > 0.1f)
             {
-                board.AutoDig(lowestCoordinates.x, lowestCoordinates.y);
+                if (!board.AutoDig(lowestCoordinates.x, lowestCoordinates.y)) EndGame(false);
             }
             
             //now print the board for the user to see
@@ -103,10 +103,11 @@ public class Solver
     {
         while (true)
         {
-            (int x, int y) = GetRandomCell(board.Width, board.Height);
+            (int x, int y) cell = GetRandomCell(board.Width, board.Height);
             
-            if (board.Grid[x, y].AdjacentMines != 0) continue;
-            board.Grid[x, y].Dig();
+            // make sure there are zero adjacent mines and that the requested cell is not itself a mine
+            if (board.Grid[cell.x, cell.y].AdjacentMines != 0 && board.Grid[cell.x, cell.y].IsMine == false) continue;
+            board.AutoDig(cell.x, cell.y);
             return;
         }
         

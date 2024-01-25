@@ -16,6 +16,7 @@ public static class GameManager
     /// <returns>True if the game was not lost, false if the game was lost.</returns>
     public static bool AutoDig(this Board board, int x, int y)
     {
+        if (board.Grid[x, y].IsDug) return true;
         switch (board.Grid[x, y].Dig())
         {
             case DigResult.Success:
@@ -27,7 +28,13 @@ public static class GameManager
             case DigResult.Open:
                 // in this case we have to call this method again for every adjacent.
                 // this Linq statement calls AutoDig on each adjacent cell and returns false if any process itself returned false.
-                return board.Grid[x, y].AdjacentCells.All(adjacent => board.AutoDig(adjacent.Item1, adjacent.Item2));
+                //return board.Grid[x, y].AdjacentCells.All(adjacent => board.AutoDig(adjacent.Item1, adjacent.Item2));
+                foreach ((int x, int y) adjacent in board.Grid[x, y].WorkingAdjacentCells)
+                {
+                    if (!board.AutoDig(adjacent.x, adjacent.y)) return false;
+                }
+
+                return true;
 
             default:
                 throw new ArgumentOutOfRangeException();

@@ -19,7 +19,7 @@ public class Cell
     /// <summary>
     /// Whether the current cell is mined. If true, digging this cell constitutes failure.
     /// </summary>
-    public bool IsMine { get; set; } = false;
+    public bool IsMine { get; set; }
     
     /// <summary>
     /// Whether the current cell has been revealed (dug). This value is mutually exclusive with IsFlagged.
