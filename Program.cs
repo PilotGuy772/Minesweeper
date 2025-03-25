@@ -19,6 +19,7 @@ internal static class Program
         int turns = 0;
         int victories = 0;
         int defeats = 0;
+        int randomDefeats = 0;
         int stuck = 0;
         Stopwatch sw = new();
         long avgTime = 0;
@@ -42,6 +43,11 @@ internal static class Program
                     Console.WriteLine(board);
                     Console.WriteLine("Defeat! Total count: {0}", defeats);
                     break;
+                case GameResult.RandomDefeat:
+                    randomDefeats++;
+                    Console.WriteLine(board);
+                    Console.WriteLine("Random Defeat! Total count: {0}", randomDefeats);
+                    break;
                 case GameResult.Stuck:
                     stuck++;
                     Console.WriteLine(board);
@@ -55,20 +61,26 @@ internal static class Program
             Console.WriteLine($"  Turns: {turns}\n" +
                               $"  Victories: {victories}\n" +
                               $"  Defeats: {defeats}\n" +
+                              $"  Random Defeats: {randomDefeats}\n" +
                               $"  Stuck: {stuck}\n" +
                               $"  Time: {sw.ElapsedMilliseconds}ms\n" +
                               $"  Average Time: {avgTime}ms\n" +
                               $"  Percent victory: {victories / (double) (turns) * 100:F2}%\n" +
                               $"  Percent defeat: {defeats / (double) (turns) * 100:F2}%\n" +
+                              $"  Percent random defeat: {randomDefeats / (double) (turns) * 100:F2}%\n" +
                               $"  Percent stuck: {stuck / (double) (turns) * 100:F2}%\n");
             //Console.ReadKey();
-            board = new Board(16, 40);
-            
-            foreach (Cell c in board.Grid)
-            {
-                if (c.NearbyMines != 0) continue;
-                c.Dig();
-                break;
+            bool found = false;
+            while (found == false){
+                board = new Board(16, 40);
+
+                foreach (Cell c in board.Grid)
+                {
+                    if (c.NearbyMines != 0) continue;
+                    c.Dig();
+                    found = true;
+                    break;
+                }
             }
         }
         
@@ -135,11 +147,14 @@ internal static class Program
 
     private static GameResult Solve(Board board)
     {
+        
         while (!board.GameOver)
         {
             bool stuck = true;
+            bool breakToOuterLoop = false;
             
             // loop for digging safe cells
+            
             for (int r = 0; r < board.Size; r++)
             {
                 for (int c = 0; c < board.Size; c++)
@@ -152,7 +167,7 @@ internal static class Program
 
                     stuck = false;
                     board.Grid[r, c].IsSafe = true;
-                    // Console.WriteLine("Cell {0}{1} is safe. Digging...", GetCharacterFromPosition(c + 1), r + 1);
+                    Console.WriteLine("Cell {0}{1} is safe. Digging...", GetCharacterFromPosition(c + 1), r + 1);
                     foreach (Cell cell in board.GetRange(r, c).Cells)
                     {
                         if (cell.Dig())
@@ -161,11 +176,18 @@ internal static class Program
                             return GameResult.Defeat;
                         }
                     }
-                        
+
+                    breakToOuterLoop = true;
+                    break;
+
                     //Console.Write(board);
                     //Console.ReadLine();
                 }
             }
+
+            if (breakToOuterLoop) continue;
+            
+
             
             for (int r = 0; r < board.Size; r++)
             {
@@ -178,12 +200,15 @@ internal static class Program
                     if (range.Mines != range.Cells.Count()) continue;
 
                     stuck = false;
-                    // Console.WriteLine("Cell {0}{1} has a 100% certain range. Flagging all cells...", GetCharacterFromPosition(c + 1), r + 1);
+                    breakToOuterLoop = true;
+                    Console.WriteLine("Cell {0}{1} has a 100% certain range. Flagging all cells...", GetCharacterFromPosition(c + 1), r + 1);
                     foreach (Cell cell in range.Cells)
                     {
                         cell.IsFlagged = true;
                     }
-                        
+
+                    break;
+
                     //Console.Write(board);
                     //Console.ReadLine();
 
@@ -191,15 +216,16 @@ internal static class Program
                 }
             }
             
-            bool breakToOuterLoop = false;
+            if (breakToOuterLoop) continue;
+            
             for (int r = 0; r < board.Size; r++)
             {
                 for (int c = 0; c < board.Size; c++)
                 {
-                    if (!board.Grid[r, c].IsDug) continue;
+                    if (!board.Grid[r, c].IsDug || board.Grid[r, c].IsSafe) continue;
                     
                     Range range = board.GetRange(r, c);
-                    // Console.WriteLine("Cell {0}{1} is being analyzed for range fusion.", GetCharacterFromPosition(c + 1), r + 1);
+                    Console.WriteLine("Cell {0}{1} is being analyzed for range fusion.", GetCharacterFromPosition(c + 1), r + 1);
                     List<Range> ranges = [];
                     for (int or = 0; or < board.Size; or++)
                     {
@@ -207,7 +233,7 @@ internal static class Program
                         {
                             if (or == r && oc == c) continue;
                             if (!board.Grid[or, oc].IsDug) continue;
-                            if (board.Grid[or, oc].IsSafe || board.Grid[r, c].IsSafe) continue;
+                            if (board.Grid[or, oc].IsSafe) continue;
                             
                             Range other = board.GetRange(or, oc);
                             // this check will ensure that we only fuse ranges where one is a subset of the other
@@ -224,11 +250,10 @@ internal static class Program
                     if (!fused.Cells.Any()) continue;
                     
                     
-                    
-                    //Console.WriteLine("Fused range around {2}{3} has {0} cells and {1} mines.", fused.Cells.Count(), fused.Mines, GetCharacterFromPosition(c + 1), r + 1);
-                    if (fused.Mines != 0 && fused.Mines == fused.Cells.Count())
+                    Console.WriteLine("Fused range around {2}{3} has {0} cells and {1} mines.", fused.Cells.Count(), fused.Mines, GetCharacterFromPosition(c + 1), r + 1);
+                    if (fused.Mines == 0 || fused.Mines == fused.Cells.Count())
                     {
-                        //Console.WriteLine("Fused range is 100% certain. Flagging all cells...");
+                        Console.WriteLine("Fused range is 100% certain. Flagging all cells...");
                         breakToOuterLoop = true;
                         stuck = false;
                         foreach (Cell cell in fused.Cells)
@@ -236,8 +261,7 @@ internal static class Program
                             cell.IsFlagged = true;
                         }
                     }
-                    //Console.Write(board);
-                    //Console.ReadLine();
+
                     if (breakToOuterLoop) break;
                     
                     // check for cells that didn't make it into any range
@@ -246,19 +270,39 @@ internal static class Program
                     {
                         foreach (Cell cell in oldRange.Cells)
                         {
-                            if (!fused.Cells.Contains(cell))
+                            if (!fused.Cells.Contains(cell) && cell is { IsFlagged: false, IsDug: false }) 
                             {
                                 stuck = false;
-                                //Console.WriteLine("Cell {0}{1} is not part of the fused range. Digging...", GetCharacterFromPosition(c + 1), r + 1);
+                                Console.WriteLine("Cell {0}{1} is not part of the fused range. Digging...", GetCharacterFromPosition(c + 1), r + 1);
                                 if (cell.Dig())
                                 {
-                                    // Console.WriteLine("Defeat at straggler check :(");
+                                    Console.WriteLine("Defeat at straggler check :(");
                                     board.GameOver = true;
                                     return GameResult.Defeat;
                                 }
                             }
                         }
                     }
+                    
+                    Console.Write(board);
+                    Console.ReadLine();
+                    
+                    // // choose a random cell to dig
+                    // Console.WriteLine("Choosing randomly");
+                    // Random rand = new();
+                    // int index = rand.Next(fused.Cells.Count());
+                    // Cell cellToDig = fused.Cells.ElementAt(index);
+                    // if (cellToDig.Dig())
+                    // {
+                    //     // Console.WriteLine("Defeat at random choice :(");
+                    //     board.GameOver = true;
+                    //     return GameResult.RandomDefeat;
+                    // }
+                    // breakToOuterLoop = true;
+                    // stuck = false;
+                    // chooseRandomly = false;
+                    // break;
+                    
                 }
                 
             }
@@ -275,12 +319,13 @@ internal static class Program
             
             if (stuck)
             {
-                // Console.WriteLine("No more safe cells to dig. Stuck.");
-                return GameResult.Stuck;
+                Console.WriteLine("No more safe cells to dig. Stuck.");
+                /*if (chooseRandomly)*/ return GameResult.Stuck;
+                //chooseRandomly = true;
             }
         }
 
-        return (GameResult)100;
+        return GameResult.Stuck;
     }
     
 }
