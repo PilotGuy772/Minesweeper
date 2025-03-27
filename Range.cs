@@ -10,14 +10,14 @@ public class Range
     /// </summary>
     /// <param name="ranges"></param>
     /// <returns></returns>
-    public static Range BinaryAnd(Range[] ranges)
+    public static Range BinaryAnd(IEnumerable<Range> ranges)
     {
-        if (ranges.Length == 0)
+        if (ranges.Count() == 0)
             return new Range();
         
         Range result = new()
         {
-            Cells = ranges[0].Cells.ToList()
+            Cells = ranges.First().Cells
         };
 
         foreach (Range range in ranges)
@@ -29,4 +29,6 @@ public class Range
         return result;
         
     }
+
+    public float Probability() => Mines / (float)Cells.Count();
 }

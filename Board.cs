@@ -113,26 +113,31 @@ public class Board
     
     public Range GetRange(int row, int column, bool includeFlags = false)
     {
+        int flaggedCount = 0;
         if (!Grid[row, column].IsDug) throw new UnauthorizedAccessException("Attempted to access a cell that has not been dug: (" + Program.GetCharacterFromPosition(column + 1) + "" + (row + 1) + ")");
-        List<Cell> cells = new();
-        int mineCount = 0;
+        List<Cell> cells = [];
         
         for (int r = Math.Max(0, row - 1); r <= Math.Min(Size - 1, row + 1); r++)
         {
             for (int c = Math.Max(0, column - 1); c <= Math.Min(Size - 1, column + 1); c++)
             {
-                if (!includeFlags && Grid[r, c].IsFlagged) continue;
                 if (Grid[r,c].IsDug) continue;
+
+                if (!includeFlags && Grid[r, c].IsFlagged)
+                {
+                    flaggedCount++;
+                    continue;
+                }
                 
                 cells.Add(Grid[r, c]);
-                if (Grid[r, c].IsMine) mineCount++;
+                //if (Grid[r, c].IsMine) mineCount++;
             }
         }
 
         return new Range
         {
             Cells = cells,
-            Mines = mineCount
+            Mines = Grid[row, column].NearbyMines - flaggedCount
         };
     }
     
