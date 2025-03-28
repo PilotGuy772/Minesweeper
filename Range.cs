@@ -2,7 +2,7 @@ namespace Minesweeper;
 
 public class Range
 {
-    public IEnumerable<Cell> Cells { get; set; }
+    public IEnumerable<Cell> Cells { get; set; } = [];
     public int Mines { get; set; }
 
     /// <summary>

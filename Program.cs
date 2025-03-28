@@ -4,11 +4,29 @@ namespace Minesweeper;
 
 internal static class Program
 {
-    private const bool Debug = false;
-    private const int TestRuns = 5000;
+    private static bool Debug = false;
+    private static int TestRuns = 5000;
     
-    private static void Main()
+    private static void Main(string[] args)
     {
+        if (args.Length == 2)
+        {
+            TestRuns = int.Parse(args[0]);
+            Debug = true;
+        }
+        else if (args.Length == 1)
+        {
+            TestRuns = int.Parse(args[0]);
+        }
+        else if (args.Length != 0)
+        {
+            Console.WriteLine("This program accepts zero, one, or two arguments:");
+            Console.WriteLine("  (minesweeper) [<number of test runs>] [<debug>]");
+            Console.WriteLine("  <number of test runs> - The number of test runs to perform. Default is 5000.");
+            Console.WriteLine("  <debug> - If specified, enables debug mode. This allows you to step through one action at a time.");
+            return;
+        }
+        
         Board board = new(16, 40);
 
         foreach (Cell c in board.Grid)
@@ -24,59 +42,50 @@ internal static class Program
         int randomDefeats = 0;
         int stuck = 0;
         Stopwatch sw = new();
+        Stopwatch overallTime = new();
         double avgTime = 0.0;
-        const int timeout = 1000; // Timeout in milliseconds
-        (int r, int c) initialDugCell = (-1, -1);
 
         Console.Write("Progress: 0% ...");
-        
+
+        overallTime.Start();
         while (turns < TestRuns)
         {
             turns++;
             sw.Restart();
             Task<GameResult> solveTask = Task.Run(() => Solve(board));
             solveTask.Wait();
+            
+            GameResult res = solveTask.Result;
+            sw.Stop();
+            if (avgTime == 0.0) avgTime = sw.ElapsedMilliseconds;
+            else avgTime += (sw.ElapsedMilliseconds - avgTime) / turns;
+            switch (res)
             {
-                GameResult res = solveTask.Result;
-                sw.Stop();
-                if (avgTime == 0.0) avgTime = sw.ElapsedMilliseconds;
-                else avgTime += (sw.ElapsedMilliseconds - avgTime) / turns;
-                switch (res)
-                {
-                    case GameResult.Victory:
-                        victories++;
-                        //Console.WriteLine(board);
-                        //Console.WriteLine("Victory! Total count: {0}", victories);
-                        break;
-                    case GameResult.Defeat:
-                        defeats++;
-                        //Console.WriteLine(board);
-                        //Console.WriteLine("Defeat! Total count: {0}", defeats);
-                        break;
-                    case GameResult.RandomDefeat:
-                        randomDefeats++;
-                        //Console.WriteLine(board);
-                        //Console.WriteLine("Random Defeat! Total count: {0}", randomDefeats);
-                        break;
-                    case GameResult.Stuck:
-                        stuck++;
-                        //Console.WriteLine(board);
-                        //Console.WriteLine("Stuck! Total count: {0}", stuck);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                case GameResult.Victory:
+                    victories++;
+                    //Console.WriteLine(board);
+                    //Console.WriteLine("Victory! Total count: {0}", victories);
+                    break;
+                case GameResult.Defeat:
+                    defeats++;
+                    //Console.WriteLine(board);
+                    //Console.WriteLine("Defeat! Total count: {0}", defeats);
+                    break;
+                case GameResult.RandomDefeat:
+                    randomDefeats++;
+                    //Console.WriteLine(board);
+                    //Console.WriteLine("Random Defeat! Total count: {0}", randomDefeats);
+                    break;
+                case GameResult.Stuck:
+                    stuck++;
+                    //Console.WriteLine(board);
+                    //Console.WriteLine("Stuck! Total count: {0}", stuck);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            
             }
-            // else
-            // {
-            //     // Handle timeout
-            //     Console.WriteLine("Solve method timed out.");
-            //     stuck++;
-            //     board.GameOver = true;
-            //     Console.WriteLine(board);
-            //     if (initialDugCell is not (-1, -1)) Console.WriteLine("First cell dug was {0}{1}", GetCharacterFromPosition(initialDugCell.c + 1), initialDugCell.r + 1);
-            //     Console.ReadKey();
-            // }
+
 
             double progress = (turns / (double)TestRuns) * 100;
             if (progress > 0 && progress % 10.0 == 0)
@@ -95,13 +104,12 @@ internal static class Program
                 {
                     if (board.Grid[r0, r1].NearbyMines != 0) continue;
                     if (board.Grid[r0, r1].Dig()) continue;
-                    initialDugCell = (r0, r1);
                     found = true;
                     break;
                 }
             }
         }
-        
+        overallTime.Stop();
         Console.Write(" Done!\n\n");
         
         Console.WriteLine("Stats:");
@@ -110,7 +118,7 @@ internal static class Program
                           $"  Defeats: {defeats}\n" +
                           $"  Random Defeats: {randomDefeats}\n" +
                           $"  Stuck: {stuck}\n" +
-                          $"  Time: {sw.ElapsedMilliseconds}ms\n" +
+                          $"  Time: {overallTime.Elapsed}\n" +
                           $"  Average Time: {avgTime:F4}ms\n" +
                           $"  Percent victory: {victories / (double) (turns) * 100:F2}%\n" +
                           $"  Percent defeat: {defeats / (double) (turns) * 100:F2}%\n" +
