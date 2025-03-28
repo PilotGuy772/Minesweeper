@@ -5,7 +5,7 @@ namespace Minesweeper;
 internal static class Program
 {
     private const bool Debug = false;
-    private const int TestRuns = 1000;
+    private const int TestRuns = 5000;
     
     private static void Main()
     {
@@ -24,70 +24,65 @@ internal static class Program
         int randomDefeats = 0;
         int stuck = 0;
         Stopwatch sw = new();
-        long avgTime = 0;
+        double avgTime = 0.0;
         const int timeout = 1000; // Timeout in milliseconds
         (int r, int c) initialDugCell = (-1, -1);
 
+        Console.Write("Progress: 0% ...");
+        
         while (turns < TestRuns)
         {
             turns++;
             sw.Restart();
-            var solveTask = Task.Run(() => Solve(board));
-            if (solveTask.Wait(timeout))
+            Task<GameResult> solveTask = Task.Run(() => Solve(board));
+            solveTask.Wait();
             {
                 GameResult res = solveTask.Result;
                 sw.Stop();
-                if (avgTime == 0) avgTime = sw.ElapsedMilliseconds;
+                if (avgTime == 0.0) avgTime = sw.ElapsedMilliseconds;
                 else avgTime += (sw.ElapsedMilliseconds - avgTime) / turns;
                 switch (res)
                 {
                     case GameResult.Victory:
                         victories++;
                         //Console.WriteLine(board);
-                        Console.WriteLine("Victory! Total count: {0}", victories);
+                        //Console.WriteLine("Victory! Total count: {0}", victories);
                         break;
                     case GameResult.Defeat:
                         defeats++;
                         //Console.WriteLine(board);
-                        Console.WriteLine("Defeat! Total count: {0}", defeats);
+                        //Console.WriteLine("Defeat! Total count: {0}", defeats);
                         break;
                     case GameResult.RandomDefeat:
                         randomDefeats++;
                         //Console.WriteLine(board);
-                        Console.WriteLine("Random Defeat! Total count: {0}", randomDefeats);
+                        //Console.WriteLine("Random Defeat! Total count: {0}", randomDefeats);
                         break;
                     case GameResult.Stuck:
                         stuck++;
                         //Console.WriteLine(board);
-                        Console.WriteLine("Stuck! Total count: {0}", stuck);
+                        //Console.WriteLine("Stuck! Total count: {0}", stuck);
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
             }
-            else
-            {
-                // Handle timeout
-                Console.WriteLine("Solve method timed out.");
-                stuck++;
-                board.GameOver = true;
-                Console.WriteLine(board);
-                if (initialDugCell is not (-1, -1)) Console.WriteLine("First cell dug was {0}{1}", GetCharacterFromPosition(initialDugCell.c + 1), initialDugCell.r + 1);
-                Console.ReadKey();
-            }
+            // else
+            // {
+            //     // Handle timeout
+            //     Console.WriteLine("Solve method timed out.");
+            //     stuck++;
+            //     board.GameOver = true;
+            //     Console.WriteLine(board);
+            //     if (initialDugCell is not (-1, -1)) Console.WriteLine("First cell dug was {0}{1}", GetCharacterFromPosition(initialDugCell.c + 1), initialDugCell.r + 1);
+            //     Console.ReadKey();
+            // }
 
-            Console.WriteLine("Stats:");
-            Console.WriteLine($"  Turns: {turns}\n" +
-                              $"  Victories: {victories}\n" +
-                              $"  Defeats: {defeats}\n" +
-                              $"  Random Defeats: {randomDefeats}\n" +
-                              $"  Stuck: {stuck}\n" +
-                              $"  Time: {sw.ElapsedMilliseconds}ms\n" +
-                              $"  Average Time: {avgTime}ms\n" +
-                              $"  Percent victory: {victories / (double) (turns) * 100:F2}%\n" +
-                              $"  Percent defeat: {defeats / (double) (turns) * 100:F2}%\n" +
-                              $"  Percent random defeat: {randomDefeats / (double) (turns) * 100:F2}%\n" +
-                              $"  Percent stuck: {stuck / (double) (turns) * 100:F2}%\n");
+            double progress = (turns / (double)TestRuns) * 100;
+            if (progress > 0 && progress % 10.0 == 0)
+            {
+                Console.Write(" {0}% ({1}/{2}) ...", progress, turns, TestRuns);
+            }
 
             bool found = false;
             int initial = board.Size / 4;
@@ -106,6 +101,21 @@ internal static class Program
                 }
             }
         }
+        
+        Console.Write(" Done!\n\n");
+        
+        Console.WriteLine("Stats:");
+        Console.WriteLine($"  Turns: {turns}\n" +
+                          $"  Victories: {victories}\n" +
+                          $"  Defeats: {defeats}\n" +
+                          $"  Random Defeats: {randomDefeats}\n" +
+                          $"  Stuck: {stuck}\n" +
+                          $"  Time: {sw.ElapsedMilliseconds}ms\n" +
+                          $"  Average Time: {avgTime:F4}ms\n" +
+                          $"  Percent victory: {victories / (double) (turns) * 100:F2}%\n" +
+                          $"  Percent defeat: {defeats / (double) (turns) * 100:F2}%\n" +
+                          $"  Percent random defeat: {randomDefeats / (double) (turns) * 100:F2}%\n" +
+                          $"  Percent stuck: {stuck / (double) (turns) * 100:F2}%\n");
     }
     
     private static int GetAlphabetPosition(char character)
@@ -283,25 +293,26 @@ internal static class Program
                     return true;
                 }
 
-                bool didSomething = false;
-                foreach (Range oldRange in ranges)
-                {
-                    foreach (Cell cell in oldRange.Cells)
-                    {
-                        if (!fused.Cells.Contains(cell) && cell is { IsFlagged: false, IsDug: false })
-                        {
-                            didSomething = true;
-                            if (Debug) Console.WriteLine("Cell {0}{1} is not part of the fused range. Digging...", GetCharacterFromPosition(c + 1), r + 1);
-                            if (cell.Dig())
-                            {
-                                if (Debug) Console.WriteLine("Defeat at straggler check :(");
-                                board.GameOver = true;
-                                return false;
-                            }
-                        }
-                    }
-                }
-                return didSomething;
+                // bool didSomething = false;
+                // foreach (Range oldRange in ranges)
+                // {
+                //     foreach (Cell cell in oldRange.Cells)
+                //     {
+                //         if (!fused.Cells.Contains(cell) && cell is { IsFlagged: false, IsDug: false })
+                //         {
+                //             didSomething = true;
+                //             if (Debug) Console.WriteLine("Cell {0}{1} is not part of the fused range. Digging...", GetCharacterFromPosition(c + 1), r + 1);
+                //             if (cell.Dig())
+                //             {
+                //                 if (Debug) Console.WriteLine("Defeat at straggler check :(");
+                //                 board.GameOver = true;
+                //                 return false;
+                //             }
+                //         }
+                //     }
+                // }
+                // return didSomething;
+                return false;
             }
         }
         return false;
