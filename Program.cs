@@ -5,7 +5,7 @@ namespace Minesweeper;
 internal static class Program
 {
     private static bool Debug = false;
-    private static int TestRuns = 5000;
+    private static int TestRuns = 1000;
     
     private static void Main(string[] args)
     {
@@ -267,9 +267,12 @@ internal static class Program
             {
                 if (!board.Grid[r, c].IsDug || board.Grid[r, c].IsSafe) continue;
     
+                
                 Range range = board.GetRange(r, c);
+                Range largestRange = range;
                 if (Debug) Console.WriteLine("Cell {0}{1} is being analyzed for range fusion.", GetCharacterFromPosition(c + 1), r + 1);
-                List<Range> ranges = new() { range };
+                List<Range> ranges = [range];
+                
                 for (int or = 0; or < board.Size; or++)
                 {
                     for (int oc = 0; oc < board.Size; oc++)
@@ -281,12 +284,16 @@ internal static class Program
                         Range other = board.GetRange(or, oc);
                         if (other.Cells.Intersect(range.Cells).Count() >= Math.Min(other.Cells.Count(), range.Cells.Count()))
                         {
+                            // keep track of which range is the largest-- largestRange will effectively be the superset of the others.
+                            if (other.Cells.Count() > largestRange.Cells.Count()) largestRange = other;
                             ranges.Add(other);
                         }
                     }
                 }
     
                 if (ranges.Count < 2) continue;
+                
+                // We now have a set of ranges such that some range in the set is a superset of all other ranges.
                 Range fused = Range.BinaryAnd(ranges);
                 if (!fused.Cells.Any()) continue;
     
@@ -301,25 +308,48 @@ internal static class Program
                     return true;
                 }
 
-                // bool didSomething = false;
-                // foreach (Range oldRange in ranges)
-                // {
-                //     foreach (Cell cell in oldRange.Cells)
-                //     {
-                //         if (!fused.Cells.Contains(cell) && cell is { IsFlagged: false, IsDug: false })
-                //         {
-                //             didSomething = true;
-                //             if (Debug) Console.WriteLine("Cell {0}{1} is not part of the fused range. Digging...", GetCharacterFromPosition(c + 1), r + 1);
-                //             if (cell.Dig())
-                //             {
-                //                 if (Debug) Console.WriteLine("Defeat at straggler check :(");
-                //                 board.GameOver = true;
-                //                 return false;
-                //             }
-                //         }
-                //     }
-                // }
-                // return didSomething;
+                // now, we can use the difference method to find the cells that are part of the superset but not any other ranges
+                // this can give us slightly more information
+                // the number of mines in this range must be the number of mines in the superset minus the number of mines in the fused range
+                Range differenceRange = new()
+                {
+                    Cells = largestRange.Cells.Except(fused.Cells), // cells in the superset but not in the fused range
+                    Mines = largestRange.Mines - fused.Mines
+                };
+                
+                if (differenceRange.Cells.Any())
+                {
+                    // if the difference range has cells, we can analyze it further
+                    if (Debug) Console.WriteLine("Difference range around {2}{3} has {0} cells and {1} mines.", differenceRange.Cells.Count(), differenceRange.Mines, GetCharacterFromPosition(c + 1), r + 1);
+                    
+                    // if the difference range is 100% certain, flag those cells as well
+                    if (differenceRange.Mines == differenceRange.Cells.Count())
+                    {
+                        if (Debug) Console.WriteLine("Difference range is 100% certain. Flagging all cells...");
+                        foreach (Cell cell in differenceRange.Cells)
+                        {
+                            cell.IsFlagged = true;
+                        }
+                        return true;
+                    }
+                
+                    if (differenceRange.Mines == 0)
+                    {
+                        foreach (Cell differenceRangeCell in differenceRange.Cells)
+                        {
+                            if (differenceRangeCell.Dig())
+                            {
+                                board.GameOver = true;
+                                return false;
+                            }
+                        }
+                
+                        return true;
+                    }
+                }
+                
+                
+                
                 return false;
             }
         }
